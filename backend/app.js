@@ -10,7 +10,7 @@ app.set('trust proxy', 1);
 const allowedOrigins = [
   'http://localhost:5173',
   'http://192.168.1.204:5173',
-  'https://url-shorten-website.vercel.app',   // <--- Your Vercel domain (update if custom!)
+  'https://url-shorten-website-six.vercel.app',   // <--- Your Vercel domain (update if custom!)
   'https://your-custom-domain.com'            // <--- Add your own domain if you use one
 ];
 
