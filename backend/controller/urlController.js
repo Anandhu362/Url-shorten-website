@@ -67,34 +67,67 @@ const redirectToOriginalUrl = async (req, res) => {
   }
 };
 
-// Controller: Shorten a URL or use custom alias
+// **MODIFIED**: Controller: Shorten a URL or use custom alias
 const shortenUrl = async (req, res) => {
-  const { originalUrl, customAlias } = req.body;
-  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    const { originalUrl, customAlias } = req.body;
+    
+    // The BASE_URL is now fetched from environment variables.
+    // It is CRITICAL that you set this in your Render dashboard.
+    const baseUrl = process.env.BASE_URL;
 
-  if (!originalUrl) {
-    return res.status(400).json({ error: 'Original URL is required' });
-  }
-  try {
-    if (!customAlias) {
-      const existingUrl = await Url.findOne({ originalUrl });
-      if (existingUrl) return res.status(200).json(existingUrl);
-    }
-    if (customAlias) {
-      const existingAlias = await Url.findOne({ shortId: customAlias });
-      if (existingAlias) return res.status(400).json({ error: 'Custom alias is already in use.' });
+    // If BASE_URL is not set, the app cannot function correctly.
+    if (!baseUrl) {
+        console.error('FATAL: BASE_URL environment variable is not set.');
+        return res.status(500).json({ error: 'Server configuration error: BASE_URL is missing.' });
     }
 
-    const shortId = customAlias || shortid.generate();
-    const shortUrl = `${baseUrl}/${shortId}`;
-    const newUrl = new Url({ originalUrl, shortId, shortUrl, customAlias });
-    await newUrl.save();
-    res.status(201).json(newUrl);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+    if (!originalUrl) {
+        return res.status(400).json({ error: 'Original URL is required' });
+    }
+
+    try {
+        // **FIX**: If the user provides a custom alias, check if it's already taken.
+        if (customAlias) {
+            const aliasExists = await Url.findOne({ shortId: customAlias });
+            if (aliasExists) {
+                return res.status(400).json({ error: 'That custom alias is already in use.' });
+            }
+        }
+
+        // **FIX**: Always check if the original URL has been shortened before.
+        // If it exists, return the existing short link to prevent duplicates.
+        const existingUrl = await Url.findOne({ originalUrl });
+        if (existingUrl) {
+            return res.status(200).json({
+                ...existingUrl.toObject(),
+                message: "This URL has already been shortened. Here is the existing link."
+            });
+        }
+
+        // If the URL is new and the alias is available, create a new entry.
+        const shortId = customAlias || shortid.generate();
+        const shortUrl = `${baseUrl}/${shortId}`;
+
+        const newUrl = new Url({
+            originalUrl,
+            shortId,
+            shortUrl,
+            // Only add the customAlias field if it was provided
+            ...(customAlias && { customAlias }),
+        });
+
+        await newUrl.save();
+        res.status(201).json(newUrl);
+
+    } catch (err) {
+        console.error(err);
+        if (err.code === 11000) {
+            return res.status(400).json({ error: 'The generated ID or alias already exists. Please try again.' });
+        }
+        res.status(500).json({ error: 'Server error' });
+    }
 };
+
 
 // Controller: Return analytics for a short URL
 const getAnalytics = async (req, res) => {
