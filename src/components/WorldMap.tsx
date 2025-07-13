@@ -106,7 +106,7 @@ const WorldMap = ({ data }: WorldMapProps) => {
             <Geographies geography={geoData}>
               {({ geographies }) =>
                 geographies.map(geo => {
-                  const countryCode = geo.properties.iso_a2?.toUpperCase();
+                  const countryCode = geo.properties.ISO_A2?.toUpperCase();
                   const countryName = geo.properties.name;
                   const countryData = countryCode ? dataMap.get(countryCode) : null;
                   const clicks = countryData?.clicks || 0;
