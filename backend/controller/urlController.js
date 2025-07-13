@@ -23,7 +23,6 @@ const redirectToOriginalUrl = async (req, res) => {
     let country = 'Unknown', countryCode = 'XX';
     const ip = getClientIp(req);
 
-    // Do not lookup localhost IPs
     if (ip && ip !== '::1' && ip !== '127.0.0.1' && ip !== 'localhost') {
       try {
         const geoResponse = await axios.get(`http://ip-api.com/json/${ip}?fields=status,country,countryCode`);
@@ -39,7 +38,6 @@ const redirectToOriginalUrl = async (req, res) => {
       countryCode = 'LC';
     }
 
-    // ---- FORCE TO INDIA FOR DEMO (TEST ONLY) ----
     if (country === 'Unknown' || country === 'Local') {
       country = 'India';
       countryCode = 'IN';
@@ -67,15 +65,11 @@ const redirectToOriginalUrl = async (req, res) => {
   }
 };
 
-// **MODIFIED**: Controller: Shorten a URL or use custom alias
+// Controller: Shorten a URL or use custom alias
 const shortenUrl = async (req, res) => {
     const { originalUrl, customAlias } = req.body;
-    
-    // The BASE_URL is now fetched from environment variables.
-    // It is CRITICAL that you set this in your Render dashboard.
     const baseUrl = process.env.BASE_URL;
 
-    // If BASE_URL is not set, the app cannot function correctly.
     if (!baseUrl) {
         console.error('FATAL: BASE_URL environment variable is not set.');
         return res.status(500).json({ error: 'Server configuration error: BASE_URL is missing.' });
@@ -86,7 +80,6 @@ const shortenUrl = async (req, res) => {
     }
 
     try {
-        // **FIX**: If the user provides a custom alias, check if it's already taken.
         if (customAlias) {
             const aliasExists = await Url.findOne({ shortId: customAlias });
             if (aliasExists) {
@@ -94,25 +87,20 @@ const shortenUrl = async (req, res) => {
             }
         }
 
-        // **FIX**: Always check if the original URL has been shortened before.
-        // If it exists, return the existing short link to prevent duplicates.
         const existingUrl = await Url.findOne({ originalUrl });
-        if (existingUrl) {
+        if (existingUrl && !customAlias) {
             return res.status(200).json({
                 ...existingUrl.toObject(),
                 message: "This URL has already been shortened. Here is the existing link."
             });
         }
 
-        // If the URL is new and the alias is available, create a new entry.
         const shortId = customAlias || shortid.generate();
         const shortUrl = `${baseUrl}/${shortId}`;
-
         const newUrl = new Url({
             originalUrl,
             shortId,
             shortUrl,
-            // Only add the customAlias field if it was provided
             ...(customAlias && { customAlias }),
         });
 
@@ -128,7 +116,6 @@ const shortenUrl = async (req, res) => {
     }
 };
 
-
 // Controller: Return analytics for a short URL
 const getAnalytics = async (req, res) => {
   try {
@@ -136,8 +123,6 @@ const getAnalytics = async (req, res) => {
     if (!url) return res.status(404).json({ error: 'URL not found' });
 
     const analytics = url.analytics || [];
-
-    // Click data by date
     const clicksByDate = analytics.reduce((acc, click) => {
       const date = new Date(click.timestamp || click.createdAt).toISOString().split('T')[0];
       acc[date] = (acc[date] || 0) + 1;
@@ -145,7 +130,6 @@ const getAnalytics = async (req, res) => {
     }, {});
     const clickChartData = Object.keys(clicksByDate).map(date => ({ date, clicks: clicksByDate[date] }));
 
-    // Device data
     const clicksByDevice = analytics.reduce((acc, click) => {
       const device = click.device || 'Unknown';
       acc[device] = (acc[device] || 0) + 1;
@@ -153,7 +137,6 @@ const getAnalytics = async (req, res) => {
     }, {});
     const deviceChartData = Object.keys(clicksByDevice).map(name => ({ name, clicks: clicksByDevice[name] }));
 
-    // Country data - aggregate by name & code
     const clicksByCountry = analytics.reduce((acc, click) => {
       const country = click.country || 'Unknown';
       const code = click.countryCode || 'XX';
@@ -164,7 +147,6 @@ const getAnalytics = async (req, res) => {
     }, {});
     const worldMapData = Object.values(clicksByCountry);
 
-    // Browser data
     const clicksByBrowser = analytics.reduce((acc, click) => {
       const ua = new UAParser(click.userAgent).getResult();
       const browserName = ua.browser.name || 'Unknown';
@@ -180,7 +162,7 @@ const getAnalytics = async (req, res) => {
       createdAt: url.createdAt,
       clickChartData,
       deviceChartData,
-      worldMapData, // <--- use this for your world map
+      worldMapData,
       browserChartData,
     });
   } catch (err) {
@@ -189,19 +171,7 @@ const getAnalytics = async (req, res) => {
   }
 };
 
-// Controller: Check if original URL exists
-const checkUrlExists = async (req, res) => {
-  const { originalUrl } = req.body;
-  if (!originalUrl) return res.status(400).json({ error: 'URL is required' });
-  try {
-    const existingUrl = await Url.findOne({ originalUrl });
-    if (existingUrl) return res.json({ exists: true, url: existingUrl });
-    else return res.json({ exists: false });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
+// **REMOVED**: The entire checkUrlExists function has been deleted.
 
 // Controller: Check if short URL exists by shortId
 const checkShortUrlExists = async (req, res) => {
@@ -231,7 +201,7 @@ module.exports = {
   shortenUrl,
   redirectToOriginalUrl,
   getAnalytics,
-  checkUrlExists,
+  // 'checkUrlExists' is now removed from the exports
   checkShortUrlExists,
   getAllUrls,
 };
