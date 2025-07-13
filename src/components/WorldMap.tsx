@@ -1,5 +1,5 @@
 // src/components/WorldMap.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   ComposableMap,
   Geographies,
@@ -9,10 +9,11 @@ import {
 import { scaleLinear } from 'd3-scale';
 import { motion } from 'framer-motion';
 
-const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
+// Using a reliable CDN URL for the map data
+const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
 interface MapData {
-  code: string;
+  code: string; // This should be the 3-letter code from your backend (e.g., "IND", "USA")
   name: string;
   clicks: number;
 }
@@ -24,25 +25,9 @@ interface WorldMapProps {
 const WorldMap = ({ data }: WorldMapProps) => {
   const [tooltipContent, setTooltipContent] = useState('');
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const [geoData, setGeoData] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchGeoData = async () => {
-      try {
-        const response = await fetch(GEO_URL);
-        if (!response.ok) throw new Error('Failed to fetch map data');
-        const data = await response.json();
-        setGeoData(data);
-      } catch (err) {
-        console.error('Failed to load map data:', err);
-      }
-    };
-
-    fetchGeoData();
-  }, []);
 
   const dataMap = new Map(
-    data.map(d => [d.code.toUpperCase(), { clicks: d.clicks, name: d.name }])
+    data.map(d => [d.code, { clicks: d.clicks, name: d.name }])
   );
 
   const maxClicks = Math.max(...data.map(d => d.clicks), 1);
@@ -54,27 +39,12 @@ const WorldMap = ({ data }: WorldMapProps) => {
     setTooltipPosition({ x: evt.clientX + 10, y: evt.clientY - 10 });
   };
 
-  if (!geoData) {
-    return (
-      <div className="bg-white/70 dark:bg-gray-800/70 rounded-3xl p-6 shadow-2xl border border-white/20 dark:border-gray-700/20">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          Global Clicks
-        </h3>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-pulse text-gray-500">
-            Loading map data...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.4 }}
-      className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-white/20 dark:border-gray-700/20 relative"
+      transition={{ duration: 0.5, delay: 0.3 }}
+      className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl p-4 sm:p-6 shadow-2xl border border-white/20 dark:border-gray-700/20 relative"
       onMouseMove={handleMouseMove}
     >
       <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
@@ -93,20 +63,20 @@ const WorldMap = ({ data }: WorldMapProps) => {
         </div>
       )}
 
-      <div className="relative h-[400px] w-full overflow-hidden rounded-xl">
+      {/* **** FIX: The height is now responsive for mobile and desktop **** */}
+      <div className="relative h-[250px] sm:h-[350px] md:h-[400px] w-full overflow-hidden rounded-xl">
         <ComposableMap
           projection="geoMercator"
-          projectionConfig={{
-            scale: 120,
-          }}
+          projectionConfig={{ scale: 120 }}
           width={800}
           height={400}
+          data-tip=""
         >
           <ZoomableGroup center={[0, 20]}>
-            <Geographies geography={geoData}>
+            <Geographies geography={GEO_URL}>
               {({ geographies }) =>
                 geographies.map(geo => {
-                  const countryCode = geo.properties.ISO_A2?.toUpperCase();
+                  const countryCode = geo.properties.iso_a3;
                   const countryName = geo.properties.name;
                   const countryData = countryCode ? dataMap.get(countryCode) : null;
                   const clicks = countryData?.clicks || 0;
@@ -120,9 +90,7 @@ const WorldMap = ({ data }: WorldMapProps) => {
                           setTooltipContent(`${countryName}: ${clicks} click${clicks !== 1 ? 's' : ''}`);
                         }
                       }}
-                      onMouseLeave={() => {
-                        setTooltipContent('');
-                      }}
+                      onMouseLeave={() => setTooltipContent('')}
                       style={{
                         default: {
                           fill: clicks > 0 ? colorScale(clicks) : '#E9ECEF',
