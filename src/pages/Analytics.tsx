@@ -1,20 +1,17 @@
-// Analytics.tsx
-
+// src/Analytics.tsx
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ExternalLink, Copy, TrendingUp, Users, Globe, Smartphone, Loader2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Copy, MousePointerClick, Globe, Monitor, Calendar, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import ClickChart from '../components/ClickChart';
 import WorldMap from '../components/WorldMap';
 import StatCard from '../components/StatCard';
 import DeviceChart from '../components/DeviceChart';
 
-// Use environment variable for the API URL for better deployment flexibility
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 const API_URL = `${API_BASE_URL}/api`;
 
-// Interface for our analytics data structure
 interface AnalyticsData {
   totalClicks: number;
   originalUrl: string;
@@ -66,9 +63,7 @@ const Analytics = () => {
     return () => clearInterval(intervalId);
   }, [shortId, fetchAnalyticsData, navigate]);
 
-  // FINAL FIX: A robust copy function with a fallback and proper event handling.
   const copyToClipboard = async (text: string) => {
-    // Modern browsers: Use the Clipboard API
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(text);
@@ -76,15 +71,12 @@ const Analytics = () => {
         return;
       } catch (err) {
         console.error('Failed to copy with Clipboard API:', err);
-        // Fallback will be attempted below
       }
     }
-
-    // Fallback for older browsers
     try {
       const textArea = document.createElement('textarea');
       textArea.value = text;
-      textArea.style.position = 'fixed'; // Prevent scrolling to bottom
+      textArea.style.position = 'fixed';
       textArea.style.opacity = '0';
       document.body.appendChild(textArea);
       textArea.focus();
@@ -97,7 +89,6 @@ const Analytics = () => {
       toast.error('Could not copy to clipboard.');
     }
   };
-
 
   if (isLoading) {
     return (
@@ -160,7 +151,7 @@ const Analytics = () => {
                     tabIndex={0}
                     className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-colors"
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent any parent click events
+                      e.stopPropagation();
                       copyToClipboard(shortUrl);
                     }}
                   >
@@ -193,15 +184,48 @@ const Analytics = () => {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.1, staggerChildren: 0.1 }}
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                delayChildren: 0.2,
+                staggerChildren: 0.15,
+              },
+            },
+          }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8"
         >
-          <StatCard title="Total Clicks" value={totalClicks.toString()} icon={TrendingUp} color="blue" />
-          <StatCard title="Top Country" value={topCountry?.name || 'N/A'} icon={Globe} color="green" trend={`${topCountry?.clicks || 0} clicks`} />
-          <StatCard title="Top Device" value={topDevice?.name || 'N/A'} icon={Smartphone} color="purple" trend={`${topDevice?.clicks || 0} clicks`} />
-          <StatCard title="Created" value={new Date(createdAt).toLocaleDateString()} icon={Users} color="orange" trend="Active link" />
+          <StatCard 
+            title="Total Clicks" 
+            value={totalClicks.toString()} 
+            icon={MousePointerClick} 
+            color="blue" 
+            trend={`${clickChartData.length > 0 ? clickChartData[clickChartData.length - 1].clicks : 0} today`}
+          />
+          <StatCard 
+            title="Top Country" 
+            value={topCountry?.name || 'N/A'} 
+            icon={Globe} 
+            color="green" 
+            trend={topCountry ? `${topCountry.clicks} clicks` : 'No data'}
+          />
+          <StatCard 
+            title="Top Device" 
+            value={topDevice?.name || 'N/A'} 
+            icon={Monitor} 
+            color="purple" 
+            trend={topDevice ? `${topDevice.clicks} clicks` : 'No data'}
+          />
+          <StatCard 
+            title="Created" 
+            value={new Date(createdAt).toLocaleDateString()} 
+            icon={Calendar} 
+            color="orange" 
+            trend="Active link"
+          />
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
